@@ -139,13 +139,6 @@ void simplified_game(void) {
         int card_A = get_card(stack_A, &first_A, &len_A);
         int card_B = get_card(stack_B, &first_B, &len_B);
 
-        if (card_A == UNDERFLOW || card_B == UNDERFLOW) {
-            if (card_A != UNDERFLOW) add_card(card_A, stack_A, first_A, &len_A);
-            if (card_B != UNDERFLOW) add_card(card_B, stack_B, first_B, &len_B);
-            print_result(OUT_OF_CARDS, 0);
-            exit(0);
-        }
-
         int result = compare_cards(card_A, card_B);
         switch (result) {
             case CONFLICT_A_WIN: {
