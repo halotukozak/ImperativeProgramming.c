@@ -93,8 +93,10 @@ int find_idents() {
                     }
 
                     // start of the word
-                    if (isValidCharacter(c)) {
+                    if (isValidFirstCharacter(c)) {
                         during_word = true;
+                        word[lastLetter++] = c;
+                    } else if (during_word && isValidCharacter(c)) {
                         word[lastLetter++] = c;
                     }
 
