@@ -176,20 +176,21 @@ double dbl_integr_normal_n(Func2vFp f, double x1, double x2, int nx, double y1, 
     double dx = (x2 - x1) / nx;
     double hy = (y2 - y1) / ny;
 
+    double xi = x1;
     for (int i = 0; i < nx; ++i) {
-        double xi = x1 + i * dx;
 
         double yi1 = max(y1, fg(xi));
         double yi2 = min(y2, fh(xi));
 
-        int nj = (yi2 - yi1) / hy;
+        int nj = ceil((yi2 - yi1) / hy);
         double dy = (yi2 - yi1) / nj;
 
+        double yi = yi1;
         for (int j = 0; j < nj; ++j) {
-            double yi = yi1 + j * dy;
             sum += f(xi, yi) * dx * dy;
+            yi += dy;
         }
-
+        xi += dx;
     }
     return sum;
 }
@@ -246,44 +247,66 @@ double trpl_quad_rect(FuncNvFp f, double variable_lim[][2], const int tn[], Boun
     double z1 = variable_lim[2][0];
     double dz = (z2 - z1) / nz;
 
+    double v[3];
+
+    v[0] = x1 + dx;
     for (int i = 0; i < nx; i++) {
+        v[1] = y1 + dy;
         for (int j = 0; j < ny; j++) {
+            v[2] = z1 + dz;
             for (int k = 0; k < nz; k++) {
-                double v[] = {x1 + (i + 1) * dx, y1 + (j + 1) * dy, z1 + (k + 1) * dz};
                 if (boundary == NULL || boundary(v, 3)) sum += f(v, 3) * dx * dy * dz;
+                v[2] += dz;
             }
+            v[1] += dy;
         }
+        v[0] += dx;
     }
     return sum;
 }
+/*
+7
+4
+0 1 10
+0 1 10
+0 1 10
+0 1 10
+1
+*/
 
 
 // multiple integrals over a n-dim hypercuboid with predicate (if boundary != NULL)
 // rectangular rule (midpoint)
 void recur_quad_rect_mid(double *p_sum, FuncNvFp f, int variable_no, double t_variable[],
-                         double variable_lim[][2], const int tn[], int level, BoundNvFp boundary) {
+                         double variable_lim[][2], const int tn[], int level, BoundNvFp boundary, double t_d[]) {
 
-    int n = tn[variable_no];
-    double hd = (variable_lim[variable_no][1] - variable_lim[variable_no][0]) / n;
+    int n = tn[level];
+    double lim1 = variable_lim[level][0];
+    double lim2 = variable_lim[level][1];
+    t_d[level] = (lim2 - lim1) / n;
+    double d = t_d[level];
 
-    double delta = hd / 2.0;
-    double midpoint[n];
-    for (int i = 0; i < n; ++i) midpoint[i] = variable_lim[variable_no][0] + delta + i * hd;
+    t_variable[level] = lim1 + d / 2;
 
-    double sum = 0.0;
-    for (int i = 0; i < n; ++i) {
-        t_variable[variable_no] = midpoint[i];
 
-        if (variable_no < N_MAX) {
-            recur_quad_rect_mid(&sum, f, variable_no + 1, t_variable, variable_lim, tn, level + 1, boundary);
-        } else {
-            if (boundary == NULL || boundary(t_variable, N_MAX)) {
-                sum += f(t_variable, N_MAX) * pow(hd, N_MAX);
+    if (variable_no == 0) {
+        for (int i = 0; i < n; i++) {
+            if (boundary == NULL || boundary(t_variable, level + 1)) {
+                double res = f(t_variable, level + 1);
+                for (int j = 0; j < level + 1; ++j) {
+                    res *= t_d[j];
+                }
+                *p_sum += res;
             }
+            t_variable[level] += d;
+        }
+
+    } else {
+        for (int i = 0; i < n; i++) {
+            recur_quad_rect_mid(p_sum, f, variable_no - 1, t_variable, variable_lim, tn, level + 1, boundary, t_d);
+            t_variable[level] += d;
         }
     }
-
-    *p_sum += sum;
 }
 
 int main(void) {
@@ -291,7 +314,7 @@ int main(void) {
     int no_funcs = sizeof(func_tab) / sizeof(Func1vFp);
     int no_quads = sizeof(quad_tab) / sizeof(QuadratureFp);
     double a, b, x1, x2, y1, y2, hy, sum, delta;
-    double t_variable[N_MAX], variable_lim[N_MAX][2];
+    double t_variable[N_MAX], variable_lim[N_MAX][2], t_d[N_MAX];
     int tn[N_MAX];
 
     scanf("%d", &to_do);
@@ -340,7 +363,7 @@ int main(void) {
             }
             scanf("%d", &flag);
             sum = 0.;
-            recur_quad_rect_mid(&sum, funcNv, n - 1, t_variable, variable_lim, tn, 0, flag ? boundNv : NULL);
+            recur_quad_rect_mid(&sum, funcNv, n - 1, t_variable, variable_lim, tn, 0, flag ? boundNv : NULL, t_d);
             printf("%.5f\n", sum);
             break;
         default:
